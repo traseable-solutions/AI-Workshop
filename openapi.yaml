@@ -1,0 +1,602 @@
+openapi: 3.0.3
+info:
+  title: Leave Management API
+  description: >
+    JSON API for the Leave Management mobile client. Mirrors the web app's
+    leave-request workflow: an employee submits a request, their HOD (manager)
+    records a recommendation which forwards it to the Permanent Secretary, who
+    makes the final approve/reject decision.
+  version: "1.0.0"
+servers:
+  - url: /api
+
+tags:
+  - name: Auth
+    description: Login, current user, logout.
+  - name: Profile
+    description: View and update the authenticated user's own profile.
+  - name: Leave Requests
+    description: An employee's own leave requests and balance.
+  - name: HOD Review
+    description: Head of Division/Department review of direct reports' requests.
+  - name: PS Review
+    description: Permanent Secretary's final approve/reject decision.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Log in and obtain an API token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "1|abcdef123456..."
+                  user:
+                    $ref: '#/components/schemas/User'
+        '422':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get the authenticated user
+      responses:
+        '200':
+          description: The current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Revoke the current API token
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /profile:
+    get:
+      tags: [Profile]
+      operationId: getProfile
+      summary: View the authenticated user's profile
+      responses:
+        '200':
+          description: The current user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Profile]
+      operationId: updateProfile
+      summary: Update the authenticated user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                tpf:
+                  type: string
+                  nullable: true
+                position:
+                  type: string
+                  nullable: true
+                duty_station:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /leave-balance:
+    get:
+      tags: [Leave Requests]
+      operationId: getLeaveBalance
+      summary: Remaining leave balance and package amount for the current user
+      description: >
+        Lightweight alternative to GET /leave-requests when only the balance
+        is needed, without pulling the employee's full request history.
+      responses:
+        '200':
+          description: Balance summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: integer
+                    description: Remaining annual leave days (31 minus approved days taken).
+                    example: 21
+                  leave_package_amount:
+                    type: integer
+                    description: Leave encashment package amount for the user's level.
+                    example: 8000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /leave-requests:
+    get:
+      tags: [Leave Requests]
+      operationId: listMyLeaveRequests
+      summary: List the authenticated user's own leave requests
+      responses:
+        '200':
+          description: The user's requests plus balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leave_requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveRequest'
+                  balance:
+                    type: integer
+                    example: 21
+                  leave_package_amount:
+                    type: integer
+                    example: 8000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Leave Requests]
+      operationId: createLeaveRequest
+      summary: Submit a new leave request
+      description: >
+        `level`, `package_amount`, `leave_destination`, `leave_address`,
+        `phone_contact`, and `travel_expense_assistance` only apply to
+        `type: annual` — the server clears them for sick/unpaid requests
+        regardless of what is sent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_date, end_date, type]
+              properties:
+                type:
+                  type: string
+                  enum: [annual, sick, unpaid]
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                  description: Must be on or after start_date.
+                reason:
+                  type: string
+                  maxLength: 1000
+                  nullable: true
+                level:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: Required if type=annual.
+                package_amount:
+                  type: integer
+                  enum: [8000, 10000]
+                  description: Required if type=annual.
+                leave_destination:
+                  type: string
+                  maxLength: 255
+                  description: Required if type=annual.
+                leave_address:
+                  type: string
+                  maxLength: 255
+                  description: Required if type=annual.
+                phone_contact:
+                  type: string
+                  maxLength: 50
+                  description: Required if type=annual.
+                travel_expense_assistance:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+      responses:
+        '201':
+          description: Request created (status starts as "pending")
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /leave-requests/{leaveRequest}:
+    get:
+      tags: [Leave Requests]
+      operationId: getLeaveRequest
+      summary: View one leave request in full
+      description: >
+        Visible to the request's owner, their HOD (manager), or any
+        Permanent Secretary. Includes the user, hodReviewer, and psReviewer
+        relations.
+      parameters:
+        - $ref: '#/components/parameters/LeaveRequestId'
+      responses:
+        '200':
+          description: The leave request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /team-requests:
+    get:
+      tags: [HOD Review]
+      operationId: listTeamLeaveRequests
+      summary: List direct reports' leave requests
+      description: Requires the authenticated user to have the `manager` role.
+      responses:
+        '200':
+          description: Requests from the manager's direct reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leave_requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /leave-requests/{leaveRequest}/recommend:
+    post:
+      tags: [HOD Review]
+      operationId: recommendLeaveRequest
+      summary: Record the HOD's recommendation and forward to the PS
+      description: >
+        Only the employee's manager can call this, and only while the
+        request is still `pending`. On success the status becomes
+        `awaiting_ps`.
+      parameters:
+        - $ref: '#/components/parameters/LeaveRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hod_recommended, hod_relief_required]
+              properties:
+                hod_recommended:
+                  type: boolean
+                hod_relief_required:
+                  type: boolean
+                hod_comments:
+                  type: string
+                  maxLength: 1000
+                  nullable: true
+      responses:
+        '200':
+          description: Recommendation recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not this employee's manager
+        '409':
+          description: Request is not awaiting HOD review (already recommended)
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /ps-requests:
+    get:
+      tags: [PS Review]
+      operationId: listPsLeaveRequests
+      summary: List requests forwarded for a final decision
+      description: >
+        Requires the `permanent_secretary` role. Includes any request an HOD
+        has reviewed, regardless of its current status (awaiting_ps,
+        approved, or rejected), so past decisions remain visible.
+      responses:
+        '200':
+          description: Forwarded requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leave_requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /leave-requests/{leaveRequest}/decide:
+    post:
+      tags: [PS Review]
+      operationId: decideLeaveRequest
+      summary: Record the Permanent Secretary's final decision
+      description: >
+        Requires the `permanent_secretary` role, and only while the request
+        is `awaiting_ps`.
+      parameters:
+        - $ref: '#/components/parameters/LeaveRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approved, rejected]
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Request is not awaiting a PS decision
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Sanctum personal access token returned by POST /login.
+
+  parameters:
+    LeaveRequestId:
+      name: leaveRequest
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Leave request ID.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+    Forbidden:
+      description: Authenticated, but not allowed to perform this action
+    NotFound:
+      description: No leave request with that ID
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        role:
+          type: string
+          enum: [employee, manager, permanent_secretary]
+        manager_id:
+          type: integer
+          nullable: true
+        level:
+          type: integer
+          nullable: true
+        tpf:
+          type: string
+          nullable: true
+        position:
+          type: string
+          nullable: true
+        duty_station:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LeaveRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        type:
+          type: string
+          enum: [annual, sick, unpaid]
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, awaiting_ps, approved, rejected]
+        level:
+          type: integer
+          nullable: true
+        package_amount:
+          type: integer
+          nullable: true
+        leave_destination:
+          type: string
+          nullable: true
+        leave_address:
+          type: string
+          nullable: true
+        phone_contact:
+          type: string
+          nullable: true
+        travel_expense_assistance:
+          type: integer
+          nullable: true
+        hod_recommended:
+          type: boolean
+          nullable: true
+        hod_relief_required:
+          type: boolean
+          nullable: true
+        hod_comments:
+          type: string
+          nullable: true
+        hod_reviewed_by:
+          type: integer
+          nullable: true
+        hod_reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        ps_reviewed_by:
+          type: integer
+          nullable: true
+        ps_reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+        hod_reviewer:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/User'
+        ps_reviewer:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/User'
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
