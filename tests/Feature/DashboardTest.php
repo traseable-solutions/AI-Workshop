@@ -154,4 +154,14 @@ class DashboardTest extends TestCase
         $this->assertNotNull($today);
         $this->assertTrue($today['users']->pluck('name')->contains('Ola OnLeave'));
     }
+
+    public function test_dashboard_links_to_the_user_guide_download(): void
+    {
+        $viewer = User::factory()->create();
+
+        $response = $this->actingAs($viewer)->get('/dashboard');
+
+        $response->assertOk();
+        $response->assertSee(route('user-guide.download'), false);
+    }
 }
