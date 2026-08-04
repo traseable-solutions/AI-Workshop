@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'user_id', 'start_date', 'end_date', 'type', 'reason', 'status', 'level', 'package_amount',
     'leave_destination', 'leave_address', 'phone_contact', 'travel_expense_assistance',
-    'hod_recommended', 'hod_relief_required', 'hod_comments', 'hod_reviewed_by', 'hod_reviewed_at',
-    'ps_reviewed_by', 'ps_reviewed_at',
+    'hod_relief_required', 'hod_comments', 'hod_reviewed_by', 'hod_reviewed_at',
 ])]
 class LeaveRequest extends Model
 {
@@ -19,10 +19,8 @@ class LeaveRequest extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
-            'hod_recommended' => 'boolean',
             'hod_relief_required' => 'boolean',
             'hod_reviewed_at' => 'datetime',
-            'ps_reviewed_at' => 'datetime',
         ];
     }
 
@@ -38,10 +36,10 @@ class LeaveRequest extends Model
         return $this->belongsTo(User::class, 'hod_reviewed_by');
     }
 
-    /** @return BelongsTo<User, $this> */
-    public function psReviewer(): BelongsTo
+    /** @return HasMany<LeaveRequestDocument, $this> */
+    public function documents(): HasMany
     {
-        return $this->belongsTo(User::class, 'ps_reviewed_by');
+        return $this->hasMany(LeaveRequestDocument::class);
     }
 
     public function daysRequested(): int
@@ -57,10 +55,5 @@ class LeaveRequest extends Model
     public function isAwaitingHod(): bool
     {
         return $this->status === 'pending';
-    }
-
-    public function isAwaitingPs(): bool
-    {
-        return $this->status === 'awaiting_ps';
     }
 }

@@ -10,7 +10,7 @@ class DashboardController extends Controller
 {
     private const TYPES = ['annual', 'sick', 'unpaid'];
 
-    private const STATUSES = ['pending', 'awaiting_ps', 'approved', 'rejected'];
+    private const STATUSES = ['pending', 'approved', 'rejected'];
 
     public function index(Request $request)
     {
@@ -33,11 +33,61 @@ class DashboardController extends Controller
 
         $leaveByType = $this->countsFor('type', self::TYPES);
         $leaveByStatus = $this->countsFor('status', self::STATUSES);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'on_leave_today' => $onLeaveToday->map(fn ($user) => ['id' => $user->id, 'name' => $user->name])->values(),
+                'upcoming_leave' => $upcomingLeave->map(fn (LeaveRequest $leaveRequest) => [
+                    'id' => $leaveRequest->id,
+                    'user' => ['id' => $leaveRequest->user->id, 'name' => $leaveRequest->user->name],
+                    'start_date' => $leaveRequest->start_date->toDateString(),
+                    'end_date' => $leaveRequest->end_date->toDateString(),
+                ])->values(),
+                'leave_by_type' => $leaveByType,
+                'leave_by_status' => $leaveByStatus,
+            ]);
+        }
+
         $calendarDays = $this->buildCalendar($today);
 
         return view('dashboard', compact(
             'onLeaveToday', 'upcomingLeave', 'leaveByType', 'leaveByStatus', 'calendarDays'
         ));
+    }
+
+    /**
+     * Company-wide leave calendar for a given month (defaults to the current one), as JSON.
+     * Every authenticated user can see every other user's approved leave here — there's no
+     * per-team scoping, unlike team-requests, by explicit user request.
+     */
+    public function calendar(Request $request)
+    {
+        $month = $request->query('month')
+            ? Carbon::createFromFormat('Y-m', $request->query('month'))->startOfMonth()
+            : Carbon::today()->startOfMonth();
+
+        $monthEnd = $month->copy()->endOfMonth();
+
+        $approved = LeaveRequest::with('user')
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $monthEnd)
+            ->whereDate('end_date', '>=', $month)
+            ->get();
+
+        $days = collect();
+        for ($date = $month->copy(); $date->lte($monthEnd); $date->addDay()) {
+            $users = $approved
+                ->filter(fn (LeaveRequest $leaveRequest) => $date->between($leaveRequest->start_date, $leaveRequest->end_date))
+                ->map(fn (LeaveRequest $leaveRequest) => ['id' => $leaveRequest->user->id, 'name' => $leaveRequest->user->name])
+                ->unique('id')
+                ->values();
+
+            if ($users->isNotEmpty()) {
+                $days->push(['date' => $date->toDateString(), 'users' => $users]);
+            }
+        }
+
+        return response()->json(['month' => $month->format('Y-m'), 'days' => $days->values()]);
     }
 
     /** Request counts for every known value of a column, so empty categories still show as zero. */

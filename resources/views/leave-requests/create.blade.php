@@ -103,7 +103,7 @@
                     </div>
 
                     <p class="text-xs text-gray-500 border-t pt-4">
-                        You are not allowed to proceed on leave until your application has been recommended by your HOD and approved by the Permanent Secretary.
+                        You are not allowed to proceed on leave until your application has been approved by your HOD.
                     </p>
 
                     <x-primary-button>Submit Request</x-primary-button>

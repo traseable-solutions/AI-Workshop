@@ -11,7 +11,7 @@ class LeaveRequestController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $leaveRequests = $user->leaveRequests()->latest()->get();
+        $leaveRequests = $user->leaveRequests()->with('documents')->latest()->get();
         $balance = $user->remainingLeaveBalance();
         $packageAmount = $user->leavePackageAmount();
 
@@ -75,12 +75,34 @@ class LeaveRequestController extends Controller
         return redirect()->route('leave-requests.index')->with('status', 'Leave request submitted.');
     }
 
-    /** The full application, including whichever review step is next. */
+    /** Attach a supporting document (photo or file) to the employee's own request. */
+    public function uploadDocument(Request $request, LeaveRequest $leaveRequest)
+    {
+        abort_unless($leaveRequest->user_id === $request->user()->id, 403);
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->store('leave-documents', 'public');
+
+        $document = $leaveRequest->documents()->create([
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+        ]);
+
+        return response()->json($document, 201);
+    }
+
+    /** The full application, including the HOD decision if one's been made. */
     public function show(Request $request, LeaveRequest $leaveRequest)
     {
         $this->authorizeView($request, $leaveRequest);
 
-        $leaveRequest->load(['user', 'hodReviewer', 'psReviewer']);
+        $leaveRequest->load(['user', 'hodReviewer', 'documents']);
 
         if ($request->wantsJson()) {
             return response()->json($leaveRequest);
@@ -89,12 +111,13 @@ class LeaveRequestController extends Controller
         return view('leave-requests.show', compact('leaveRequest'));
     }
 
-    /** Pending requests from the signed-in manager's direct reports, awaiting HOD recommendation. */
+    /** Pending requests from the signed-in manager's direct reports, awaiting a HOD decision. */
     public function teamIndex(Request $request)
     {
         abort_unless($request->user()->isManager(), 403);
 
-        $leaveRequests = LeaveRequest::whereIn('user_id', $request->user()->employees()->pluck('id'))
+        $leaveRequests = LeaveRequest::with('documents')
+            ->whereIn('user_id', $request->user()->employees()->pluck('id'))
             ->latest()
             ->get();
 
@@ -105,59 +128,24 @@ class LeaveRequestController extends Controller
         return view('leave-requests.team', compact('leaveRequests'));
     }
 
-    /** The HOD's recommendation, which forwards the request on to the Permanent Secretary. */
-    public function recommend(Request $request, LeaveRequest $leaveRequest)
+    /** The HOD's final approve/reject decision — the only review step now. */
+    public function decide(Request $request, LeaveRequest $leaveRequest)
     {
         $this->authorizeManagerFor($request, $leaveRequest);
         abort_unless($leaveRequest->isAwaitingHod(), 409);
 
         $data = $request->validate([
-            'hod_recommended' => ['required', 'boolean'],
+            'decision' => ['required', 'in:approved,rejected'],
             'hod_relief_required' => ['required', 'boolean'],
             'hod_comments' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $leaveRequest->update($data + [
-            'status' => 'awaiting_ps',
-            'hod_reviewed_by' => $request->user()->id,
-            'hod_reviewed_at' => now(),
-        ]);
-
-        if ($request->wantsJson()) {
-            return response()->json($leaveRequest);
-        }
-
-        return back()->with('status', 'Recommendation submitted and forwarded to the Permanent Secretary.');
-    }
-
-    /** Requests forwarded to the Permanent Secretary for a final decision. */
-    public function psIndex(Request $request)
-    {
-        abort_unless($request->user()->isPermanentSecretary(), 403);
-
-        $leaveRequests = LeaveRequest::whereNotNull('hod_reviewed_at')->latest()->get();
-
-        if ($request->wantsJson()) {
-            return response()->json(['leave_requests' => $leaveRequests]);
-        }
-
-        return view('leave-requests.ps', compact('leaveRequests'));
-    }
-
-    /** The Permanent Secretary's final approve/reject decision. */
-    public function decide(Request $request, LeaveRequest $leaveRequest)
-    {
-        abort_unless($request->user()->isPermanentSecretary(), 403);
-        abort_unless($leaveRequest->isAwaitingPs(), 409);
-
-        $data = $request->validate([
-            'decision' => ['required', 'in:approved,rejected'],
-        ]);
-
         $leaveRequest->update([
             'status' => $data['decision'],
-            'ps_reviewed_by' => $request->user()->id,
-            'ps_reviewed_at' => now(),
+            'hod_relief_required' => $data['hod_relief_required'],
+            'hod_comments' => $data['hod_comments'] ?? null,
+            'hod_reviewed_by' => $request->user()->id,
+            'hod_reviewed_at' => now(),
         ]);
 
         if ($request->wantsJson()) {
@@ -178,8 +166,7 @@ class LeaveRequestController extends Controller
 
         abort_unless(
             $leaveRequest->user_id === $user->id
-                || $leaveRequest->user->manager_id === $user->id
-                || $user->isPermanentSecretary(),
+                || $leaveRequest->user->manager_id === $user->id,
             403
         );
     }

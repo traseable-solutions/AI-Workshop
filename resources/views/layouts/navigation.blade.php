@@ -23,11 +23,6 @@
                             {{ __('Team Requests') }}
                         </x-nav-link>
                     @endif
-                    @if (Auth::user()->isPermanentSecretary())
-                        <x-nav-link :href="route('leave-requests.ps')" :active="request()->routeIs('leave-requests.ps')">
-                            {{ __('PS Approvals') }}
-                        </x-nav-link>
-                    @endif
                 </div>
             </div>
 
@@ -93,11 +88,6 @@
             @if (Auth::user()->isManager())
                 <x-responsive-nav-link :href="route('leave-requests.team')" :active="request()->routeIs('leave-requests.team')">
                     {{ __('Team Requests') }}
-                </x-responsive-nav-link>
-            @endif
-            @if (Auth::user()->isPermanentSecretary())
-                <x-responsive-nav-link :href="route('leave-requests.ps')" :active="request()->routeIs('leave-requests.ps')">
-                    {{ __('PS Approvals') }}
                 </x-responsive-nav-link>
             @endif
         </div>

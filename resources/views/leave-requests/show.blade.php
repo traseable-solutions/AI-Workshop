@@ -53,11 +53,11 @@
             @endif
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-4">Head of Division / Department</h3>
+                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-4">Head of Division / Department Decision</h3>
 
                 @if ($leaveRequest->hod_reviewed_at)
                     <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                        <div><dt class="text-gray-500">Leave Recommended</dt><dd>{{ $leaveRequest->hod_recommended ? 'Yes' : 'No' }}</dd></div>
+                        <div><dt class="text-gray-500">Decision</dt><dd class="capitalize">{{ $leaveRequest->status }}</dd></div>
                         <div><dt class="text-gray-500">Leave Relief Required</dt><dd>{{ $leaveRequest->hod_relief_required ? 'Yes' : 'No' }}</dd></div>
                         @if ($leaveRequest->hod_comments)
                             <div class="col-span-2"><dt class="text-gray-500">Comments</dt><dd>{{ $leaveRequest->hod_comments }}</dd></div>
@@ -67,17 +67,8 @@
                         </div>
                     </dl>
                 @elseif ($leaveRequest->isAwaitingHod() && auth()->id() === $leaveRequest->user->manager_id)
-                    <form method="POST" action="{{ route('leave-requests.recommend', $leaveRequest) }}" class="space-y-4">
+                    <form method="POST" action="{{ route('leave-requests.decide', $leaveRequest) }}" class="space-y-4">
                         @csrf
-
-                        <div>
-                            <x-input-label value="Leave Recommended" />
-                            <div class="mt-1 space-x-4">
-                                <label><input type="radio" name="hod_recommended" value="1" required> Yes</label>
-                                <label><input type="radio" name="hod_recommended" value="0" required> No</label>
-                            </div>
-                            <x-input-error :messages="$errors->get('hod_recommended')" class="mt-2" />
-                        </div>
 
                         <div>
                             <x-input-label value="Leave Relief Required" />
@@ -94,33 +85,14 @@
                             <x-input-error :messages="$errors->get('hod_comments')" class="mt-2" />
                         </div>
 
-                        <x-primary-button>Submit Recommendation</x-primary-button>
-                    </form>
-                @else
-                    <p class="text-sm text-gray-500">Awaiting HOD recommendation.</p>
-                @endif
-            </div>
-
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-4">Permanent Secretary Decision</h3>
-
-                @if ($leaveRequest->ps_reviewed_at)
-                    <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                        <div><dt class="text-gray-500">Decision</dt><dd class="capitalize">{{ $leaveRequest->status }}</dd></div>
-                        <div class="col-span-2 text-xs text-gray-500">
-                            {{ $leaveRequest->psReviewer->name }} on {{ $leaveRequest->ps_reviewed_at->format('Y-m-d') }}
+                        <div class="space-x-2">
+                            <button type="submit" name="decision" value="approved" class="px-4 py-2 bg-green-700 text-white rounded-md text-sm">Approved</button>
+                            <button type="submit" name="decision" value="rejected" class="px-4 py-2 bg-red-700 text-white rounded-md text-sm">Not Approved</button>
                         </div>
-                    </dl>
-                @elseif ($leaveRequest->isAwaitingPs() && auth()->user()->isPermanentSecretary())
-                    <form method="POST" action="{{ route('leave-requests.decide', $leaveRequest) }}" class="space-x-2">
-                        @csrf
-                        <button type="submit" name="decision" value="approved" class="px-4 py-2 bg-green-700 text-white rounded-md text-sm">Approved</button>
-                        <button type="submit" name="decision" value="rejected" class="px-4 py-2 bg-red-700 text-white rounded-md text-sm">Not Approved</button>
+                        <x-input-error :messages="$errors->get('decision')" class="mt-2" />
                     </form>
-                @elseif ($leaveRequest->isAwaitingPs())
-                    <p class="text-sm text-gray-500">Awaiting Permanent Secretary decision.</p>
                 @else
-                    <p class="text-sm text-gray-500">Not yet forwarded to the Permanent Secretary.</p>
+                    <p class="text-sm text-gray-500">Awaiting HOD decision.</p>
                 @endif
             </div>
 

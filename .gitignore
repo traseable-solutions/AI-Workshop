@@ -15,8 +15,10 @@
 /auth.json
 /node_modules
 /public/build
+/public/downloads
 /public/fonts-manifest.dev.json
 /public/hot
+/public/mobile-app
 /public/storage
 /storage/*.key
 /storage/pail

@@ -46,11 +46,6 @@ class User extends Authenticatable
         return $this->role === 'manager';
     }
 
-    public function isPermanentSecretary(): bool
-    {
-        return $this->role === 'permanent_secretary';
-    }
-
     public function manager(): ?self
     {
         return $this->manager_id ? self::find($this->manager_id) : null;

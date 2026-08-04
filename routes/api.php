@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
@@ -16,11 +17,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update']);
 
     Route::get('/leave-balance', [LeaveRequestController::class, 'balance']);
+    Route::get('/leave-calendar', [DashboardController::class, 'calendar']);
+    Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
     Route::get('/team-requests', [LeaveRequestController::class, 'teamIndex']);
-    Route::get('/ps-requests', [LeaveRequestController::class, 'psIndex']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
-    Route::post('/leave-requests/{leaveRequest}/recommend', [LeaveRequestController::class, 'recommend']);
+    Route::post('/leave-requests/{leaveRequest}/documents', [LeaveRequestController::class, 'uploadDocument']);
     Route::post('/leave-requests/{leaveRequest}/decide', [LeaveRequestController::class, 'decide']);
 });

@@ -23,9 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');
     Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     Route::get('/team-requests', [LeaveRequestController::class, 'teamIndex'])->name('leave-requests.team');
-    Route::get('/ps-requests', [LeaveRequestController::class, 'psIndex'])->name('leave-requests.ps');
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show'])->name('leave-requests.show');
-    Route::post('/leave-requests/{leaveRequest}/recommend', [LeaveRequestController::class, 'recommend'])->name('leave-requests.recommend');
     Route::post('/leave-requests/{leaveRequest}/decide', [LeaveRequestController::class, 'decide'])->name('leave-requests.decide');
 });
 
