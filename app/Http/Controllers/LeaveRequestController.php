@@ -46,32 +46,10 @@ class LeaveRequestController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'type' => ['required', 'in:annual,sick,unpaid,compassionate,maternity'],
-            'reason' => ['nullable', 'string', 'max:1000'],
-            'level' => ['required_if:type,annual', 'nullable', 'integer', 'between:1,12'],
-            'package_amount' => ['required_if:type,annual', 'nullable', 'integer', 'in:8000,10000'],
-            'leave_destination' => ['required_if:type,annual', 'nullable', 'string', 'max:255'],
-            'leave_address' => ['required_if:type,annual', 'nullable', 'string', 'max:255'],
-            'phone_contact' => ['required_if:type,annual', 'nullable', 'string', 'max:50'],
-            'travel_expense_assistance' => ['nullable', 'integer', 'min:0'],
-            'documents' => ['nullable', 'array'],
-            'documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
-        ]);
+        $data = $this->validateLeaveRequestData($request, withDocuments: true);
 
         $documents = $data['documents'] ?? [];
         unset($data['documents']);
-
-        // These fields only apply to annual leave; other types never carry them,
-        // regardless of what a non-UI client (e.g. the API) sends.
-        if ($data['type'] !== 'annual') {
-            $data = array_merge($data, array_fill_keys([
-                'level', 'package_amount', 'leave_destination', 'leave_address', 'phone_contact',
-                'travel_expense_assistance',
-            ], null));
-        }
 
         $leaveRequest = $request->user()->leaveRequests()->create($data + ['status' => 'pending']);
 
@@ -84,6 +62,81 @@ class LeaveRequestController extends Controller
         }
 
         return redirect()->route('leave-requests.index')->with('status', 'Leave request submitted.');
+    }
+
+    public function edit(Request $request, LeaveRequest $leaveRequest)
+    {
+        $this->authorizeOwnerEditable($request, $leaveRequest);
+
+        return view('leave-requests.edit', compact('leaveRequest'));
+    }
+
+    /** The employee's own edit of a request that's still awaiting a HOD decision. */
+    public function update(Request $request, LeaveRequest $leaveRequest)
+    {
+        $this->authorizeOwnerEditable($request, $leaveRequest);
+
+        $data = $this->validateLeaveRequestData($request, withDocuments: false);
+
+        $leaveRequest->update($data);
+
+        if ($request->wantsJson()) {
+            return response()->json($leaveRequest);
+        }
+
+        return redirect()->route('leave-requests.index')->with('status', 'Leave request updated.');
+    }
+
+    /** The employee withdraws their own request — kept (not deleted) so the HOD/PS history stays visible. */
+    public function cancel(Request $request, LeaveRequest $leaveRequest)
+    {
+        $this->authorizeOwnerEditable($request, $leaveRequest);
+
+        $leaveRequest->update(['status' => 'cancelled']);
+
+        if ($request->wantsJson()) {
+            return response()->json($leaveRequest);
+        }
+
+        return redirect()->route('leave-requests.index')->with('status', 'Leave request cancelled.');
+    }
+
+    /**
+     * Shared by store() and update() — same field set either way. Document uploads only
+     * apply at creation time; update() has its own dedicated upload endpoint for later additions.
+     */
+    private function validateLeaveRequestData(Request $request, bool $withDocuments): array
+    {
+        $rules = [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'type' => ['required', 'in:annual,sick,unpaid,compassionate,maternity'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'level' => ['required_if:type,annual', 'nullable', 'integer', 'between:1,12'],
+            'package_amount' => ['required_if:type,annual', 'nullable', 'integer', 'in:8000,10000'],
+            'leave_destination' => ['required_if:type,annual', 'nullable', 'string', 'max:255'],
+            'leave_address' => ['required_if:type,annual', 'nullable', 'string', 'max:255'],
+            'phone_contact' => ['required_if:type,annual', 'nullable', 'string', 'max:50'],
+            'travel_expense_assistance' => ['nullable', 'integer', 'min:0'],
+        ];
+
+        if ($withDocuments) {
+            $rules['documents'] = ['nullable', 'array'];
+            $rules['documents.*'] = ['file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'];
+        }
+
+        $data = $request->validate($rules);
+
+        // These fields only apply to annual leave; other types never carry them,
+        // regardless of what a non-UI client (e.g. the API) sends.
+        if ($data['type'] !== 'annual') {
+            $data = array_merge($data, array_fill_keys([
+                'level', 'package_amount', 'leave_destination', 'leave_address', 'phone_contact',
+                'travel_expense_assistance',
+            ], null));
+        }
+
+        return $data;
     }
 
     /** Attach a supporting document (photo or file) to the employee's own request. */
@@ -177,6 +230,13 @@ class LeaveRequestController extends Controller
     private function authorizeManagerFor(Request $request, LeaveRequest $leaveRequest): void
     {
         abort_unless($leaveRequest->user->manager_id === $request->user()->id, 403);
+    }
+
+    /** Only the request's own employee can edit/cancel it, and only before the HOD has decided. */
+    private function authorizeOwnerEditable(Request $request, LeaveRequest $leaveRequest): void
+    {
+        abort_unless($leaveRequest->user_id === $request->user()->id, 403);
+        abort_unless($leaveRequest->isAwaitingHod(), 409);
     }
 
     private function authorizeView(Request $request, LeaveRequest $leaveRequest): void

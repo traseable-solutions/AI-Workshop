@@ -23,6 +23,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
     Route::get('/team-requests', [LeaveRequestController::class, 'teamIndex']);
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show']);
+    Route::patch('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update']);
+    Route::post('/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel']);
     Route::post('/leave-requests/{leaveRequest}/documents', [LeaveRequestController::class, 'uploadDocument']);
     Route::post('/leave-requests/{leaveRequest}/decide', [LeaveRequestController::class, 'decide']);
 });

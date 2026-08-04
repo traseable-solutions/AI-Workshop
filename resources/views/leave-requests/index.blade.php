@@ -56,6 +56,13 @@
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <a href="{{ route('leave-requests.show', $leaveRequest) }}" class="text-indigo-700">View</a>
+                                        @if ($leaveRequest->isAwaitingHod())
+                                            <a href="{{ route('leave-requests.edit', $leaveRequest) }}" class="text-indigo-700">Edit</a>
+                                            <form method="POST" action="{{ route('leave-requests.cancel', $leaveRequest) }}" onsubmit="return confirm('Cancel this leave request?')">
+                                                @csrf
+                                                <button type="submit" class="text-red-700">Cancel</button>
+                                            </form>
+                                        @endif
                                         <x-document-indicator :leave-request="$leaveRequest" />
                                     </div>
                                 </td>

@@ -25,6 +25,16 @@
                     <p class="text-sm text-gray-700"><span class="text-gray-500">Reason:</span> {{ $leaveRequest->reason }}</p>
                 @endif
                 <p class="text-xs text-gray-500">Submitted by {{ $leaveRequest->user->name }} on {{ $leaveRequest->created_at->format('Y-m-d') }}.</p>
+
+                @if (auth()->id() === $leaveRequest->user_id && $leaveRequest->isAwaitingHod())
+                    <div class="flex items-center gap-4 pt-2">
+                        <a href="{{ route('leave-requests.edit', $leaveRequest) }}" class="text-sm text-indigo-700">Edit request</a>
+                        <form method="POST" action="{{ route('leave-requests.cancel', $leaveRequest) }}" onsubmit="return confirm('Cancel this leave request?')">
+                            @csrf
+                            <button type="submit" class="text-sm text-red-700">Cancel request</button>
+                        </form>
+                    </div>
+                @endif
             </div>
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
