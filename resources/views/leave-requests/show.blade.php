@@ -27,6 +27,36 @@
                 <p class="text-xs text-gray-500">Submitted by {{ $leaveRequest->user->name }} on {{ $leaveRequest->created_at->format('Y-m-d') }}.</p>
             </div>
 
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-4">Supporting Documents</h3>
+
+                @if ($leaveRequest->documents->isEmpty())
+                    <p class="text-sm text-gray-500">No documents attached.</p>
+                @else
+                    <ul class="divide-y divide-gray-100 mb-4">
+                        @foreach ($leaveRequest->documents as $document)
+                            <li class="py-2 flex items-center justify-between gap-2 text-sm">
+                                <a href="{{ $document->url }}" target="_blank" rel="noopener" class="text-indigo-700 truncate">
+                                    {{ $document->original_name }}
+                                </a>
+                                <span class="text-xs text-gray-400 shrink-0">{{ number_format($document->size / 1024, 0) }} KB</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                @if (auth()->id() === $leaveRequest->user_id)
+                    <form method="POST" action="{{ route('leave-requests.documents.store', $leaveRequest) }}" enctype="multipart/form-data" class="flex items-end gap-3">
+                        @csrf
+                        <div class="flex-1">
+                            <input name="file" type="file" accept="image/jpeg,image/png,application/pdf" class="block w-full text-sm text-gray-700" required />
+                            <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-md text-sm shrink-0">Upload</button>
+                    </form>
+                @endif
+            </div>
+
             @if ($leaveRequest->type === 'annual')
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                     <h3 class="text-sm font-semibold text-gray-700 uppercase mb-4">Personal Information</h3>

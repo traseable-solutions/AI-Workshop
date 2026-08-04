@@ -54,7 +54,10 @@
                                 <td class="px-6 py-4">{{ $leaveRequest->package_amount ? '$'.number_format($leaveRequest->package_amount) : '—' }}</td>
                                 <td class="px-6 py-4 capitalize">{{ str_replace('_', ' ', $leaveRequest->status) }}</td>
                                 <td class="px-6 py-4">
-                                    <a href="{{ route('leave-requests.show', $leaveRequest) }}" class="text-indigo-700">View</a>
+                                    <div class="flex items-center gap-3">
+                                        <a href="{{ route('leave-requests.show', $leaveRequest) }}" class="text-indigo-700">View</a>
+                                        <x-document-indicator :leave-request="$leaveRequest" />
+                                    </div>
                                 </td>
                             </tr>
                         @empty

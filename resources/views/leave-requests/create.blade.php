@@ -8,7 +8,7 @@
     <div class="py-12">
         <div class="max-w-xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <form method="POST" action="{{ route('leave-requests.store') }}" class="space-y-4" x-data="{ type: '{{ old('type', 'annual') }}' }">
+                <form method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data" class="space-y-4" x-data="{ type: '{{ old('type', 'annual') }}' }">
                     @csrf
 
                     <div>
@@ -40,6 +40,14 @@
                         <x-input-label for="reason" value="Reason (optional)" />
                         <textarea id="reason" name="reason" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">{{ old('reason') }}</textarea>
                         <x-input-error :messages="$errors->get('reason')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="documents" value="Supporting Documents (optional)" />
+                        <input id="documents" name="documents[]" type="file" multiple accept="image/jpeg,image/png,application/pdf" class="mt-1 block w-full text-sm text-gray-700" />
+                        <p class="text-xs text-gray-500 mt-1">JPEG, PNG or PDF, up to 10MB each — e.g. a medical certificate.</p>
+                        <x-input-error :messages="$errors->get('documents')" class="mt-2" />
+                        <x-input-error :messages="$errors->get('documents.0')" class="mt-2" />
                     </div>
 
                     <div x-show="type === 'annual'" class="space-y-4 border-t pt-4">

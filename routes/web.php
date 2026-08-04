@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/team-requests', [LeaveRequestController::class, 'teamIndex'])->name('leave-requests.team');
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show'])->name('leave-requests.show');
     Route::post('/leave-requests/{leaveRequest}/decide', [LeaveRequestController::class, 'decide'])->name('leave-requests.decide');
+    Route::post('/leave-requests/{leaveRequest}/documents', [LeaveRequestController::class, 'uploadDocument'])->name('leave-requests.documents.store');
 });
 
 require __DIR__.'/auth.php';

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestDocument;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class LeaveRequestController extends Controller
 {
@@ -55,7 +57,12 @@ class LeaveRequestController extends Controller
             'leave_address' => ['required_if:type,annual', 'nullable', 'string', 'max:255'],
             'phone_contact' => ['required_if:type,annual', 'nullable', 'string', 'max:50'],
             'travel_expense_assistance' => ['nullable', 'integer', 'min:0'],
+            'documents' => ['nullable', 'array'],
+            'documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
         ]);
+
+        $documents = $data['documents'] ?? [];
+        unset($data['documents']);
 
         // These fields only apply to annual leave; other types never carry them,
         // regardless of what a non-UI client (e.g. the API) sends.
@@ -67,6 +74,10 @@ class LeaveRequestController extends Controller
         }
 
         $leaveRequest = $request->user()->leaveRequests()->create($data + ['status' => 'pending']);
+
+        foreach ($documents as $file) {
+            $this->storeDocument($leaveRequest, $file);
+        }
 
         if ($request->wantsJson()) {
             return response()->json($leaveRequest, 201);
@@ -84,17 +95,25 @@ class LeaveRequestController extends Controller
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
         ]);
 
-        $file = $request->file('file');
+        $document = $this->storeDocument($leaveRequest, $request->file('file'));
+
+        if ($request->wantsJson()) {
+            return response()->json($document, 201);
+        }
+
+        return back()->with('status', 'Document uploaded.');
+    }
+
+    private function storeDocument(LeaveRequest $leaveRequest, UploadedFile $file): LeaveRequestDocument
+    {
         $path = $file->store('leave-documents', 'public');
 
-        $document = $leaveRequest->documents()->create([
+        return $leaveRequest->documents()->create([
             'path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getClientMimeType(),
             'size' => $file->getSize(),
         ]);
-
-        return response()->json($document, 201);
     }
 
     /** The full application, including the HOD decision if one's been made. */
