@@ -17,6 +17,8 @@
                             <option value="annual">Annual</option>
                             <option value="sick">Sick</option>
                             <option value="unpaid">Unpaid</option>
+                            <option value="compassionate">Compassionate</option>
+                            <option value="maternity">Maternity</option>
                         </select>
                         <x-input-error :messages="$errors->get('type')" class="mt-2" />
                     </div>

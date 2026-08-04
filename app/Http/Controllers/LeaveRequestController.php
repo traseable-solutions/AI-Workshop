@@ -47,7 +47,7 @@ class LeaveRequestController extends Controller
         $data = $request->validate([
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'type' => ['required', 'in:annual,sick,unpaid'],
+            'type' => ['required', 'in:annual,sick,unpaid,compassionate,maternity'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'level' => ['required_if:type,annual', 'nullable', 'integer', 'between:1,12'],
             'package_amount' => ['required_if:type,annual', 'nullable', 'integer', 'in:8000,10000'],

@@ -8,7 +8,7 @@ use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    private const TYPES = ['annual', 'sick', 'unpaid'];
+    private const TYPES = ['annual', 'sick', 'unpaid', 'compassionate', 'maternity'];
 
     private const STATUSES = ['pending', 'approved', 'rejected'];
 
