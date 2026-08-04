@@ -188,7 +188,7 @@ class LeaveRequestController extends Controller
     {
         abort_unless($request->user()->isManager(), 403);
 
-        $leaveRequests = LeaveRequest::with('documents')
+        $leaveRequests = LeaveRequest::with(['user', 'documents'])
             ->whereIn('user_id', $request->user()->employees()->pluck('id'))
             ->latest()
             ->get();

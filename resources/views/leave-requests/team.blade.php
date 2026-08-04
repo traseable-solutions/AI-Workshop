@@ -13,6 +13,8 @@
                 </div>
             @endif
 
+            <div id="cancellation-notice" class="hidden bg-amber-100 text-amber-800 px-4 py-3 rounded"></div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
@@ -56,4 +58,48 @@
             </div>
         </div>
     </div>
+
+    {{--
+        No push/email channel is wired up for this app yet (would need a mail
+        service or Firebase project the user hasn't set up) — this is a
+        client-local stand-in, the same trick used for the employee's own
+        status-change toast in the mobile app: diff each request's status
+        against what this browser last saw, and only flag cancellations,
+        since approve/reject are always the manager's own action.
+    --}}
+    @php
+        $teamNoticeData = $leaveRequests->map(fn ($r) => [
+            'id' => $r->id,
+            'status' => $r->status,
+            'name' => $r->user->name,
+            'type' => $r->type,
+            'start' => $r->start_date->format('Y-m-d'),
+            'end' => $r->end_date->format('Y-m-d'),
+        ])->values();
+    @endphp
+    <script>
+        (function () {
+            const STORAGE_KEY = 'leave_management_web_team_seen_statuses';
+            const requests = @json($teamNoticeData);
+
+            const seen = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+            const changes = [];
+
+            requests.forEach((r) => {
+                const previous = seen[r.id];
+                if (previous && previous !== 'cancelled' && r.status === 'cancelled') {
+                    changes.push(`${r.name}'s ${r.type} leave request (${r.start} → ${r.end}) was cancelled.`);
+                }
+                seen[r.id] = r.status;
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(seen));
+
+            if (changes.length > 0) {
+                const notice = document.getElementById('cancellation-notice');
+                notice.textContent = changes.join(' ');
+                notice.classList.remove('hidden');
+            }
+        })();
+    </script>
 </x-app-layout>
