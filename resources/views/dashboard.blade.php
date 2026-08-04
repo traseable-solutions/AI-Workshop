@@ -5,15 +5,27 @@
                 {{ __('Dashboard') }}
             </h2>
 
-            <a
-                href="{{ route('user-guide.download') }}"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
-            >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
-                </svg>
-                {{ __('Download User Guide') }}
-            </a>
+            <div class="flex items-center gap-3">
+                <a
+                    href="{{ asset('downloads/leave-management.apk') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded-md hover:bg-gray-900"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+                    </svg>
+                    {{ __('Download Android App') }}
+                </a>
+
+                <a
+                    href="{{ route('user-guide.download') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+                    </svg>
+                    {{ __('Download User Guide') }}
+                </a>
+            </div>
         </div>
     </x-slot>
 
